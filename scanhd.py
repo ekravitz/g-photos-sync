@@ -1,6 +1,7 @@
 import os
 import pickle
 import md5
+import sys
 
 #Python 3
 extensions=['jpg','jpeg']
@@ -46,3 +47,8 @@ def scan_for_changes(topdir=".")
 					db[fullpath]=MyFile(fullpath)
 
 	pickle.dump(db.items(), open(pickle_file, "w"))
+
+	
+if __name__ == "__main__":
+	print(sys.argv[0])
+	#	scan_for_changes(sys.argv[1])
