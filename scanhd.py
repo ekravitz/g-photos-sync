@@ -6,22 +6,23 @@ import sys
 #Python 3
 extensions=['jpg','jpeg']
 
-class MyFile():
-#Auto-init and save file attributes that are relevant
-	def __init__(self, path):
-		self.path = path
-		self.stat = os.stat(path)
-		self.checksum = hashlib.md5(open(path,mode='rb').read())
 
-	def checkSame():
-		#check file size and modification date
-		if (self.stat.st_size != os.stat(self.path).st_size) or (self.stat.st_mtime != os.stat(self.path).st_mtime):
-			if self.checksum != hashlib.md5(open(path,mode='rb').read()):
-				return False
-		
-		return True
 
 def scan_for_changes(topdir="."):
+	class MyFile():
+	#Auto-init and save file attributes that are relevant
+		def __init__(self, path):
+			self.path = path
+			self.stat = os.stat(path)
+			self.checksum = hashlib.md5(open(path,mode='rb').read())
+
+		def checkSame():
+			#check file size and modification date
+			if (self.stat.st_size != os.stat(self.path).st_size) or (self.stat.st_mtime != os.stat(self.path).st_mtime):
+				if self.checksum != hashlib.md5(open(path,mode='rb').read()):
+					return False
+
+			return True
 	pickle_file = os.path.join(topdir,"db").encode()
 	print(pickle_file)
 	try:
