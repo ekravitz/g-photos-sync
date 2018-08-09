@@ -12,7 +12,7 @@ def scan_for_changes(topdir="."):
 		def __init__(self, path):
 			self.path = path
 			self.stat = os.stat(path)
-			self.checksum = hashlib.md5(open(path).read())
+			self.checksum = hashlib.md5(open(path,mode='rb').read())
 	
 		def checkSame():
 			#check file size
@@ -23,7 +23,7 @@ def scan_for_changes(topdir="."):
 			if self.stat.st_mtime != os.stat(self.path).st_mtime:
 				return False
 			
-			if self.checksum != hashlib.md5(open(path).read()):
+			if self.checksum != hashlib.md5(open(path,mode='rb').read()):
 				return False
 			
 			return True
@@ -41,9 +41,9 @@ def scan_for_changes(topdir="."):
 				fullpath=os.path.join(dirpath, name)
 				
 				if fullpath in db and db[fullpath].checkSame():
-					print(fullpath + "check passed")
+					print(fullpath + " check passed")
 				else:
-					print (fullpath + "check failed, adding file")
+					print (fullpath + " check failed, adding file")
 					db[fullpath]=MyFile(fullpath)
 
 	pickle.dump(db.items(), open(pickle_file, "w"))
