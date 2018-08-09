@@ -49,7 +49,7 @@ def scan_for_changes(topdir="."):
 					print (fullpath + " check failed, adding file")
 					db[fullpath]=MyFile(fullpath)
 
-	pickle.dump(db, open(pickle_file, mode="w"))
+	pickle.dump(db, open(pickle_file, mode="wb"))
 
 	
 if __name__ == "__main__":
