@@ -14,14 +14,13 @@ class MyFile():
 		
 		self.st_size = os.stat(path).st_size
 		self.st_mtime= os.stat(path).st_mtime
-		self.checksum = hashlib.md5(open(path,mode='rb').read())
+		self.checksum = hashlib.md5(open(path,mode='rb').read()).hexdigest()
 
-		print(self.checksum.hexdigest())
 		
 	def checkSame(self):
 		#check file size and modification date
 		if (self.st_size != os.stat(self.path).st_size) or (self.st_mtime != os.stat(self.path).st_mtime):
-			if self.checksum != hashlib.md5(open(self.path,mode='rb').read()):
+			if self.checksum != hashlib.md5(open(self.path,mode='rb').read().hexdigest()):
 				return False
 		
 		return True
