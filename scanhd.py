@@ -46,4 +46,5 @@ def scan_for_changes(topdir="."):
 
 	
 if __name__ == "__main__":
+	print(sys.argv[1])
 	scan_for_changes(sys.argv[1])
