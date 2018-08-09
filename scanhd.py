@@ -25,7 +25,7 @@ class MyFile():
 def scan_for_changes(topdir="."):
 
 	pickle_file = os.path.join(topdir,"db").encode()
-	pickle_file2 = "/media/usb/stuff/media_server/Pics/Junior"
+	pickle_file2 = "/media/usb/stuff/media_server/Pics/Junior/db"
 	print(pickle_file)
 	print(pickle_file2)
 	
