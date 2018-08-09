@@ -1,6 +1,6 @@
 import os
 import pickle
-import md5
+import hashlib
 import sys
 
 #Python 3
@@ -12,7 +12,7 @@ def scan_for_changes(topdir="."):
 		def __init__(self, path):
 			self.path = path
 			self.stat = os.stat(path)
-			self.checksum = md5.md5(open(path).read())
+			self.checksum = hashlib.md5(open(path).read())
 	
 		def checkSame():
 			#check file size
@@ -23,7 +23,7 @@ def scan_for_changes(topdir="."):
 			if self.stat.st_mtime != os.stat(self.path).st_mtime:
 				return False
 			
-			if self.checksum != md5.md5(open(path).read()):
+			if self.checksum != hashlib.md5(open(path).read()):
 				return False
 			
 			return True
