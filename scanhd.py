@@ -7,26 +7,30 @@ import sys
 extensions=['jpg','jpeg']
 
 
+class MyFile():
+#Auto-init and save file attributes that are relevant
+	def __init__(self, path):
+		self.path = path
+		self.stat = os.stat(path)
+		self.checksum = hashlib.md5(open(path,mode='rb').read())
 
+	def checkSame():
+		#check file size and modification date
+		if (self.stat.st_size != os.stat(self.path).st_size) or (self.stat.st_mtime != os.stat(self.path).st_mtime):
+			if self.checksum != hashlib.md5(open(path,mode='rb').read()):
+				return False
+		
+		return True
+	
 def scan_for_changes(topdir="."):
-	class MyFile():
-	#Auto-init and save file attributes that are relevant
-		def __init__(self, path):
-			self.path = path
-			self.stat = os.stat(path)
-			self.checksum = hashlib.md5(open(path,mode='rb').read())
 
-		def checkSame():
-			#check file size and modification date
-			if (self.stat.st_size != os.stat(self.path).st_size) or (self.stat.st_mtime != os.stat(self.path).st_mtime):
-				if self.checksum != hashlib.md5(open(path,mode='rb').read()):
-					return False
-
-			return True
 	pickle_file = os.path.join(topdir,"db").encode()
+	pickle_file2 = "/media/usb/stuff/media_server/Pics/Junior"
 	print(pickle_file)
+	print(pickle_file2)
+	
 	try:
-		l = pickle.load(open(pickle_file,mode='r'))
+		l = pickle.load(open(pickle_file2,mode='r'))
 	except IOError:
 		l = []
 	db = dict(l)
