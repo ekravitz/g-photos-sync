@@ -22,9 +22,8 @@ class MyFile():
 		return True
 
 def scan_for_changes(topdir="."):
-
-	
 	pickle_file = os.path.join(topdir,"db")
+	print(pickle_file)
 	try:
 		l = pickle.load(open(pickle_file))
 	except IOError:
