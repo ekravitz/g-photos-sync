@@ -16,7 +16,7 @@ class MyFile():
 		self.st_mtime= os.stat(path).st_mtime
 		self.checksum = hashlib.md5(open(path,mode='rb').read())
 
-		print(checksum)
+		print(self.checksum)
 		
 	def checkSame(self):
 		#check file size and modification date
