@@ -25,7 +25,7 @@ def scan_for_changes(topdir="."):
 	pickle_file = os.path.join(topdir,"db")
 	print(pickle_file)
 	try:
-		l = pickle.load(open(pickle_file))
+		l = pickle.load(open(pickle_file,mode='r'))
 	except IOError:
 		l = []
 	db = dict(l)
@@ -41,7 +41,7 @@ def scan_for_changes(topdir="."):
 					print (fullpath + " check failed, adding file")
 					db[fullpath]=MyFile(fullpath)
 
-	pickle.dump(db.items(), open(pickle_file, "w"))
+	pickle.dump(db.items(), open(pickle_file, mode="w"))
 
 	
 if __name__ == "__main__":
