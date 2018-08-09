@@ -30,7 +30,7 @@ class MyFile():
 	
 def scan_for_changes(topdir="."):
 
-	pickle_file = os.path.join(topdir,"db").encode()
+	pickle_file = os.path.join(topdir,"db")
 	
 	try:
 		l = pickle.load(open(pickle_file,mode='r'))
