@@ -20,7 +20,7 @@ class MyFile():
 		self.st_mtime=1
 		self.checksum=1
 		
-	def checkSame():
+	def checkSame(self):
 		#check file size and modification date
 		if (self.st_size != os.stat(self.path).st_size) or (self.st_mtime != os.stat(self.path).st_mtime):
 			if self.checksum != hashlib.md5(open(path,mode='rb').read()):
