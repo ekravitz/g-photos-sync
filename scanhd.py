@@ -15,16 +15,10 @@ def scan_for_changes(topdir="."):
 			self.checksum = hashlib.md5(open(path,mode='rb').read())
 	
 		def checkSame():
-			#check file size
-			if self.stat.st_size != os.stat(self.path).st_size:
-				return False
-			
-			#check modification date
-			if self.stat.st_mtime != os.stat(self.path).st_mtime:
-				return False
-			
-			if self.checksum != hashlib.md5(open(path,mode='rb').read()):
-				return False
+			#check file size and modification date
+			if (self.stat.st_size != os.stat(self.path).st_size) or (self.stat.st_mtime != os.stat(self.path).st_mtime):
+				if self.checksum != hashlib.md5(open(path,mode='rb').read()):
+					return False
 			
 			return True
 	
