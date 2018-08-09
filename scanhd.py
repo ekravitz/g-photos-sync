@@ -25,12 +25,9 @@ class MyFile():
 def scan_for_changes(topdir="."):
 
 	pickle_file = os.path.join(topdir,"db").encode()
-	pickle_file2 = "/media/usb/stuff/media_server/Pics/Junior/db"
-	print(pickle_file)
-	print(pickle_file2)
 	
 	try:
-		l = pickle.load(open(pickle_file2,mode='r'))
+		l = pickle.load(open(pickle_file,mode='r'))
 	except IOError:
 		l = []
 	db = dict(l)
