@@ -33,7 +33,7 @@ def scan_for_changes(topdir="."):
 	pickle_file = os.path.join(topdir,"db")
 	
 	try:
-		l = pickle.load(open(pickle_file,mode='r'))
+		l = pickle.load(open(pickle_file,mode='rb'))
 	except IOError:
 		l = []
 	db = dict(l)
