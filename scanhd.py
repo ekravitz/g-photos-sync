@@ -6,7 +6,7 @@ import sys
 #Python 3
 extensions=['jpg','jpeg']
 
-def scan_for_changes(topdir=".")
+def scan_for_changes(topdir="."):
 	class MyFile():
 	#Auto-init and save file attributes that are relevant
 		def __init__(self, path):
