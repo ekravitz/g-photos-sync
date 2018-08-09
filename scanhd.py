@@ -22,8 +22,7 @@ class MyFile():
 		return True
 
 def scan_for_changes(topdir="."):
-	#pickle_file = os.path.join(topdir,"db")
-	pickle_file="/media/usb/stuff/media_server/Pics/Junior/Week 12"
+	pickle_file = os.path.join(topdir,"db")
 	print(pickle_file)
 	try:
 		l = pickle.load(open(pickle_file,mode='r'))
