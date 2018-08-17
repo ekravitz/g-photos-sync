@@ -3,9 +3,9 @@ import pickle
 import hashlib
 import sys
 
-#Python 3
+#Should be run in Python 3
 extensions=['jpg','jpeg']
-
+testing="this is a test"
 
 class MyFile():
 #Auto-init and save file attributes that are relevant
