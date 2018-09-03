@@ -2,10 +2,20 @@ import os
 import pickle
 import hashlib
 import sys
+import configparser
+from oauth2client.client import flow_from_clientsecrets
+from oauth2client.file import Storage
+from httplib2 import Http
+from urllib.parse import quote
+import json
+import argparse
 
 #Should be run in Python 3
 extensions=['jpg','jpeg']
-testing="this is a test"
+
+configFile="./config.ini"
+
+pickle_file="./db.pyPickle"
 
 class MyFile():
 #Auto-init and save file attributes that are relevant
@@ -24,7 +34,69 @@ class MyFile():
 				return False
 		
 		return True
+
+class GooglePhotos():
+	def __init__(self, config):
+		self.credentials = self.retreive_from_storage(config)
+		
+	def authenticateGoogle(self, config):
+		flow = flow_from_clientsecrets(config['clientJSON'],
+			scope=config['scope'],
+			redirect_uri='http://localhost')
+		auth_uri = flow.step1_get_authorize_url()
+		print("Please go to the following URL: " + auth_uri)
+		gToken=input("Please enter the code from Google: ")
+		
+		credentials = flow.step2_exchange(gToken)
+		return credentials
 	
+	def retreive_from_storage(self, config):
+	
+		storage = Storage(config['credentialsFile'])
+		credentials = storage.get()
+		if credentials is None:
+			credentials = authenticateGoogle(config)
+			storage.put(credentials)
+		else:
+			pass
+			print("Got from storage")
+	
+		return credentials
+	
+	def createAlbum(self, album):
+		
+		h=Http()
+		request_url="https://photoslibrary.googleapis.com/v1/albums"
+		request_type="POST"
+		headers={"Content-type": "application/json; charset=UTF-8"}
+	
+		if album:
+			body={"album": {"title": album}}
+		else:
+			body={"album": {"title": "Test album for none specified"}}
+			
+		self.credentials.authorize(h)
+		formatted_body=json.dumps(body)
+		# print(formatted_body)
+		response, content = h.request(request_url, request_type, headers=headers, body=formatted_body)
+		print(h)
+		print(response)
+		print("______")
+		print(content)
+	
+	def checkAlbum(self, album):
+		h=Http()
+		request_url="https://photoslibrary.googleapis.com/v1/albums"
+		request_type="GET"
+		headers={"Content-type": "application/json; charset=UTF-8"}
+		self.credentials.authorize(h)
+		body=''
+		# print(formatted_body)
+		response, content = h.request(request_url, request_type, headers=headers, body=body)
+		print(response)
+		print("______")
+		print(content)
+		
 def scan_for_changes(topdir="."):
 
 	pickle_file = os.path.join(topdir,"db")
@@ -48,7 +120,37 @@ def scan_for_changes(topdir="."):
 
 	pickle.dump(db, open(pickle_file, mode="wb"))
 
+def loadConfig(file=configFile):
+	config = configparser.ConfigParser()
+	config.read(file)
+	return config
+
+
+
+def loadArgParser():
+	parser = argparse.ArgumentParser(description='Scan HD for changes and upload to GPhotos.')
+	parser.add_argument('Folder', help='Folder location to scan and upload')
+	parser.add_argument('-album', help='Specify name of album to save; defaults to first level directory name')
 	
+	return parser.parse_args()
+
 if __name__ == "__main__":
-	print(sys.argv[1])
-	scan_for_changes(sys.argv[1])
+	args = loadArgParser()
+	
+	print(args.Folder)
+	print(args.album)
+
+	config = loadConfig()
+	
+	gPhoto = GooglePhotos(config["Google"])
+	
+	if args.album:
+		gPhoto.createAlbum(args.album)
+		gPhoto.checkAlbum(args.album)
+		
+
+
+	if False:
+		scan_for_changes(sys.argv[1])
+		sys.exit()
+
