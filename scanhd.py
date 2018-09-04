@@ -54,7 +54,8 @@ class GooglePhotos():
 	def authenticateGoogle(self, config):
 		flow = flow_from_clientsecrets(config['clientJSON'],
 			scope=config['scope'],
-			redirect_uri='http://localhost')
+			redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+			#redirect_uri='http://localhost')
 		auth_uri = flow.step1_get_authorize_url()
 		print("Please go to the following URL: " + auth_uri)
 		gToken=input("Please enter the code from Google: ")
