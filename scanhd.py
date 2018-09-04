@@ -13,8 +13,6 @@ import argparse
 #Should be run in Python 3
 extensions=['jpg','jpeg']
 
-configFile="./config.ini"
-
 pickle_file="./db.pyPickle"
 
 class MyFile():
@@ -38,6 +36,16 @@ class MyFile():
 class GooglePhotos():
 	def __init__(self, config):
 		self.credentials = self.retreive_from_storage(config)
+		self.pickleFile = config["pickleFile"]
+		self.albumList = self.getAlbumList(self.pickleFile)
+		
+	def getAlbumList(self,pickleFileLocation):
+		try:
+			l = pickle.load(open(pickleFileLocation,mode='rb'))
+		except IOError:
+			l = set()
+		print(l)
+		return l
 		
 	def authenticateGoogle(self, config):
 		flow = flow_from_clientsecrets(config['clientJSON'],
@@ -79,10 +87,9 @@ class GooglePhotos():
 		formatted_body=json.dumps(body)
 		# print(formatted_body)
 		response, content = h.request(request_url, request_type, headers=headers, body=formatted_body)
-		print(h)
-		print(response)
-		print("______")
-		print(content)
+
+		# UTF-8 is common and is specified in header, so assume it will stay the same. Better approach would be to follow what is in the header
+		self.albumList.add(json.loads(content.decode("utf-8"))["id"])
 	
 	def checkAlbum(self, album):
 		h=Http()
@@ -96,6 +103,9 @@ class GooglePhotos():
 		print(response)
 		print("______")
 		print(content)
+	
+	def cleanup(self):
+		pickle.dump(self.albumList, open(self.pickleFile, mode="wb"))
 		
 def scan_for_changes(topdir="."):
 
@@ -120,7 +130,7 @@ def scan_for_changes(topdir="."):
 
 	pickle.dump(db, open(pickle_file, mode="wb"))
 
-def loadConfig(file=configFile):
+def loadConfig(file):
 	config = configparser.ConfigParser()
 	config.read(file)
 	return config
@@ -131,6 +141,7 @@ def loadArgParser():
 	parser = argparse.ArgumentParser(description='Scan HD for changes and upload to GPhotos.')
 	parser.add_argument('Folder', help='Folder location to scan and upload')
 	parser.add_argument('-album', help='Specify name of album to save; defaults to first level directory name')
+	parser.add_argument('-config', help='Location of config file; defaults to current directory', default="./config.ini")
 	
 	return parser.parse_args()
 
@@ -140,7 +151,7 @@ if __name__ == "__main__":
 	print(args.Folder)
 	print(args.album)
 
-	config = loadConfig()
+	config = loadConfig(args.config)
 	
 	gPhoto = GooglePhotos(config["Google"])
 	
@@ -148,7 +159,7 @@ if __name__ == "__main__":
 		gPhoto.createAlbum(args.album)
 		gPhoto.checkAlbum(args.album)
 		
-
+	gPhoto.cleanup()
 
 	if False:
 		scan_for_changes(sys.argv[1])
