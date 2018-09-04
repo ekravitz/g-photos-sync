@@ -9,6 +9,7 @@ from httplib2 import Http
 from urllib.parse import quote
 import json
 import argparse
+import itertools
 
 #Should be run in Python 3
 extensions=['jpg','jpeg']
@@ -32,6 +33,9 @@ class MyFile():
 				return False
 		
 		return True
+	
+	def __str__(self):
+		return self.path
 
 class GooglePhotos():
 	def __init__(self, config):
@@ -43,9 +47,9 @@ class GooglePhotos():
 		try:
 			l = pickle.load(open(pickleFileLocation,mode='rb'))
 		except IOError:
-			l = set()
+			l = {}
 		print(l)
-		return l
+		return dict(l)
 		
 	def authenticateGoogle(self, config):
 		flow = flow_from_clientsecrets(config['clientJSON'],
@@ -71,26 +75,33 @@ class GooglePhotos():
 	
 		return credentials
 	
-	def createAlbum(self, album):
+	def getAlbum(self, albumTitle):
 		
-		h=Http()
-		request_url="https://photoslibrary.googleapis.com/v1/albums"
-		request_type="POST"
-		headers={"Content-type": "application/json; charset=UTF-8"}
-	
-		if album:
-			body={"album": {"title": album}}
-		else:
-			body={"album": {"title": "Test album for none specified"}}
-			
-		self.credentials.authorize(h)
-		formatted_body=json.dumps(body)
-		# print(formatted_body)
-		response, content = h.request(request_url, request_type, headers=headers, body=formatted_body)
+		if albumTitle.lower() not in self.albumList
+			#Add album
+			h=Http()
+			request_url="https://photoslibrary.googleapis.com/v1/albums"
+			request_type="POST"
+			headers={"Content-type": "application/json; charset=UTF-8"}
 
-		# UTF-8 is common and is specified in header, so assume it will stay the same. Better approach would be to follow what is in the header
-		self.albumList.add(json.loads(content.decode("utf-8"))["id"])
+			body={"album": {"title": albumTitle}}
+
+			self.credentials.authorize(h)
+			formatted_body=json.dumps(body)
+			# print(formatted_body)
+			response, content = h.request(request_url, request_type, headers=headers, body=formatted_body)
+			
+			#Save album title and id information
+			
+			# UTF-8 is common and is specified in header, so assume it will stay the same. Better approach would be to follow what is in the header
+			jsonContent = json.loads(content.decode("utf-8"))
+
+			self.albumList[jsonContent["title"].lower()] = jsonContent["id"]
+			pickle.dump(self.albumList, open(self.pickleFile, mode="wb"))
+		
+		return self.albumList[albumTitle.lower()]
 	
+	#Function not used since maintain list. Problem was this function was returning and empty set even for albums created by program.
 	def checkAlbum(self, album):
 		h=Http()
 		request_url="https://photoslibrary.googleapis.com/v1/albums"
@@ -103,11 +114,23 @@ class GooglePhotos():
 		print(response)
 		print("______")
 		print(content)
-	
-	def cleanup(self):
-		pickle.dump(self.albumList, open(self.pickleFile, mode="wb"))
 		
-def scan_for_changes(topdir="."):
+	def uploadPhoto(self,albumID,fileList): #only first item in list for now
+		h=Http()
+		request_url="https://photoslibrary.googleapis.com/v1/uploads"
+		request_type="POST"
+		headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": fileList[0].path, "X-Goog-Upload-Protocol": "raw"}
+		self.credentials.authorize(h)
+		
+		# print(formatted_body)
+		response, content = h.request(request_url, request_type, headers=headers, body=open(fileList[0].path, 'rb').read())
+		print(response)
+		print("______")
+		print(content)
+		
+		#Need to create media item if this works until here.
+		
+def scan_for_changes(topdir=".",subfolders = True):
 
 	pickle_file = os.path.join(topdir,"db")
 	
@@ -127,9 +150,13 @@ def scan_for_changes(topdir="."):
 				else:
 					print (fullpath + " check failed, adding file")
 					db[fullpath]=MyFile(fullpath)
+					yield db[fullpath]
+		if not subfolders:
+			break
 
 	pickle.dump(db, open(pickle_file, mode="wb"))
 
+	
 def loadConfig(file):
 	config = configparser.ConfigParser()
 	config.read(file)
@@ -140,9 +167,9 @@ def loadConfig(file):
 def loadArgParser():
 	parser = argparse.ArgumentParser(description='Scan HD for changes and upload to GPhotos.')
 	parser.add_argument('Folder', help='Folder location to scan and upload')
-	parser.add_argument('-album', help='Specify name of album to save; defaults to first level directory name')
+	parser.add_argument('-album', help='Specify name of album to save; defaults to albums in FIRST LEVEL SUBFOLDER (pics in top folder ignored)')
 	parser.add_argument('-config', help='Location of config file; defaults to current directory', default="./config.ini")
-	
+	parser.add_argument('-subfolders', help='Include subfolders? CONFIRM Relevant only if album flag specified', default=True)
 	return parser.parse_args()
 
 if __name__ == "__main__":
@@ -156,12 +183,10 @@ if __name__ == "__main__":
 	gPhoto = GooglePhotos(config["Google"])
 	
 	if args.album:
-		gPhoto.createAlbum(args.album)
-		gPhoto.checkAlbum(args.album)
-		
-	gPhoto.cleanup()
-
-	if False:
-		scan_for_changes(sys.argv[1])
-		sys.exit()
-
+		albumID = gPhoto.getAlbum(args.album)
+		files = scan_for_changes(args.Folder,args.subfolders)
+		for fileList in itertools.islice(files, 10):
+			print("New List")
+			print(fileList)
+			
+			gPhoto.uploadPhoto(albumID, fileList)
