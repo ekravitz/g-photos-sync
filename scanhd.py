@@ -78,7 +78,7 @@ class GooglePhotos():
 	
 	def getAlbum(self, albumTitle):
 		
-		if albumTitle.lower() not in self.albumList:
+		if (albumTitle.lower() not in self.albumList) or (not albumExistsOnline(self.albumList[albumTitle.lower()])):
 			#Add album
 			h=Http()
 			request_url="https://photoslibrary.googleapis.com/v1/albums"
@@ -102,34 +102,55 @@ class GooglePhotos():
 		
 		return self.albumList[albumTitle.lower()]
 	
-	#Function not used since maintain list. Problem was this function was returning and empty set even for albums created by program.
-	def checkAlbum(self, album):
+	def albumExistsOnline(self, albumID):
 		h=Http()
 		request_url="https://photoslibrary.googleapis.com/v1/albums"
 		request_type="GET"
-		headers={"Content-type": "application/json; charset=UTF-8"}
+		headers={"Content-type": "application/json; charset=UTF-8", "albumId":albumID}
 		self.credentials.authorize(h)
-		body=''
-		# print(formatted_body)
-		response, content = h.request(request_url, request_type, headers=headers, body=body)
-		print(response)
-		print("______")
-		print(content)
+		response, content = h.request(request_url, request_type, headers=headers, body='')
+		# UTF-8 is common and is specified in header, so assume it will stay the same. Better approach would be to follow what is in the header
+		jsonContent = json.loads(content.decode("utf-8"))
+		if "title" in jsonContent:
+			print("Found album with the following title: " + jsonContent["title"])
+			return True
+		else:
+			print("Album in local storage but not online. Re-adding album.")
+			return False
 		
 	def uploadPhoto(self,albumID,fileList): #only first item in list for now
-		h=Http()
-		request_url="https://photoslibrary.googleapis.com/v1/uploads"
-		request_type="POST"
-		headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": fileList[0].path, "X-Goog-Upload-Protocol": "raw"}
-		self.credentials.authorize(h)
+		newItems =[]
+		for filePath in fileList[:1]:
+			h=Http()
+			request_url="https://photoslibrary.googleapis.com/v1/uploads"
+			request_type="POST"
+			headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": fileList[0].path, "X-Goog-Upload-Protocol": "raw"}
+			self.credentials.authorize(h)
+
+			# print(formatted_body)
+			response, content = h.request(request_url, request_type, headers=headers, body=open(filePath.path, 'rb').read())
+			print(response)
+			print("______UPLOAD RESPONSE______")
+			print(content)
+			#HANDLE ERROR UPLOADING
+			newItems.append({"description":filePath.path,"simpleMediaItem":{"uploadToken":content.decode("utf-8")}})
 		
-		# print(formatted_body)
-		response, content = h.request(request_url, request_type, headers=headers, body=open(fileList[0].path, 'rb').read())
-		print(response)
-		print("______")
-		print(content)
 		
 		#Need to create media item if this works until here.
+		h=Http()
+		request_url="https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate"
+		request_type="POST"
+		headers={"Content-type": "octet-stream"}
+		self.credentials.authorize(h)
+		body={"albumId":albumID, "newMediaItems":newItems}
+		formatted_body=json.dumps(body)
+		print("Body of media item request:")
+		print(formatted_body)
+		response, content = h.request(request_url, request_type, headers=headers, body=formatted_body)
+		print("Response to media item request:")
+		print(response)
+		print(content)
+
 		
 def scan_for_changes(topdir=".",subfolders = True):
 
@@ -170,7 +191,7 @@ def loadArgParser():
 	parser.add_argument('Folder', help='Folder location to scan and upload')
 	parser.add_argument('-album', help='Specify name of album to save; defaults to albums in FIRST LEVEL SUBFOLDER (pics in top folder ignored)')
 	parser.add_argument('-config', help='Location of config file; defaults to current directory', default="./config.ini")
-	parser.add_argument('-subfolders', help='Include subfolders? CONFIRM Relevant only if album flag specified', default=True)
+	parser.add_argument('-subfolders', help='Include subfolders beneath album level?', default=True)
 	return parser.parse_args()
 
 if __name__ == "__main__":
@@ -185,6 +206,10 @@ if __name__ == "__main__":
 	
 	if args.album:
 		albumID = gPhoto.getAlbum(args.album)
-		files = scan_for_changes(args.Folder,args.subfolders)
-		print(list(itertools.islice(files, 10))[0])
-		#gPhoto.uploadPhoto(albumID, fileList)
+		fileListGenerator = scan_for_changes(args.Folder,args.subfolders)
+		while True:
+			fileList = list(itertools.islice(fileListGenerator, 10))
+			if not fileList: 
+				break
+			gPhoto.uploadPhoto(albumID, fileList)
+			
