@@ -78,7 +78,7 @@ class GooglePhotos():
 	
 	def getAlbum(self, albumTitle):
 		
-		if albumTitle.lower() not in self.albumList
+		if albumTitle.lower() not in self.albumList:
 			#Add album
 			h=Http()
 			request_url="https://photoslibrary.googleapis.com/v1/albums"
@@ -186,8 +186,5 @@ if __name__ == "__main__":
 	if args.album:
 		albumID = gPhoto.getAlbum(args.album)
 		files = scan_for_changes(args.Folder,args.subfolders)
-		for fileList in itertools.islice(files, 10):
-			print("New List")
-			print(fileList)
-			
-			gPhoto.uploadPhoto(albumID, fileList)
+		print(list(itertools.islice(files, 10))[0])
+		#gPhoto.uploadPhoto(albumID, fileList)
