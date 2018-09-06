@@ -40,7 +40,7 @@ class MyFile():
 class GooglePhotos():
 	def __init__(self, config):
 		self.credentials = self.retreive_from_storage(config)
-		self.pickleFile = config["pickleFile"]
+		self.pickleFile = config["pickleFileAlbums"]
 		self.albumList = self.getAlbumList(self.pickleFile)
 		
 	def getAlbumList(self,pickleFileLocation):
@@ -78,7 +78,7 @@ class GooglePhotos():
 	
 	def getAlbum(self, albumTitle):
 		
-		if (albumTitle.lower() not in self.albumList) or (not albumExistsOnline(self.albumList[albumTitle.lower()])):
+		if (albumTitle.lower() not in self.albumList) or (not self.albumExistsOnline(self.albumList[albumTitle.lower()])):
 			#Add album
 			h=Http()
 			request_url="https://photoslibrary.googleapis.com/v1/albums"
@@ -104,7 +104,7 @@ class GooglePhotos():
 	
 	def albumExistsOnline(self, albumID):
 		h=Http()
-		request_url="https://photoslibrary.googleapis.com/v1/albums"
+		request_url="https://photoslibrary.googleapis.com/v1/albums/" +  albumID
 		request_type="GET"
 		headers={"Content-type": "application/json; charset=UTF-8", "albumId":albumID}
 		self.credentials.authorize(h)
@@ -152,9 +152,7 @@ class GooglePhotos():
 		print(content)
 
 		
-def scan_for_changes(topdir=".",subfolders = True):
-
-	pickle_file = os.path.join(topdir,"db")
+def scan_for_changes(pickle_file="./db.pyPickle",topdir=".",subfolders = True):
 	
 	try:
 		l = pickle.load(open(pickle_file,mode='rb'))
@@ -206,10 +204,11 @@ if __name__ == "__main__":
 	
 	if args.album:
 		albumID = gPhoto.getAlbum(args.album)
-		fileListGenerator = scan_for_changes(args.Folder,args.subfolders)
+		fileListGenerator = scan_for_changes(config["General"]["pickleFileDB"],args.Folder,args.subfolders)
 		while True:
-			fileList = list(itertools.islice(fileListGenerator, 10))
+			fileList = list(itertools.islice(fileListGenerator, 3))
+			print(fileList)
 			if not fileList: 
 				break
 			gPhoto.uploadPhoto(albumID, fileList)
-			
+			print("loop")
