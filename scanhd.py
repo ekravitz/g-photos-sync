@@ -14,7 +14,8 @@ import itertools
 #Should be run in Python 3
 extensions=['jpg','jpeg']
 
-pickle_file="./db.pyPickle"
+printVerbose = False
+
 
 class MyFile():
 #Auto-init and save file attributes that are relevant
@@ -58,7 +59,7 @@ class GooglePhotos():
 			redirect_uri='urn:ietf:wg:oauth:2.0:oob')
 			#redirect_uri='http://localhost')
 		auth_uri = flow.step1_get_authorize_url()
-		#print("Please go to the following URL: " + auth_uri)
+		print("Please go to the following URL: " + auth_uri)
 		gToken=input("Please enter the code from Google: ")
 		
 		credentials = flow.step2_exchange(gToken)
@@ -69,7 +70,7 @@ class GooglePhotos():
 		storage = Storage(config['credentialsFile'])
 		credentials = storage.get()
 		if credentials is None:
-			credentials = authenticateGoogle(config)
+			credentials = self.authenticateGoogle(config)
 			storage.put(credentials)
 		else:
 			printv("Obtained credentials from storage")
@@ -126,16 +127,16 @@ class GooglePhotos():
 			#printv("Album in local storage but not online. Re-adding album.")
 			return False
 		
-	def uploadPhoto(self,albumID,fileList): #only first item in list for now
+	def uploadPhoto(self,albumID,fileList):
 		printv("Uploading list of photos")
 		newItems =[]
-		for filePath in fileList[:1]:
+		for filePath in fileList:
 			h=Http()
 			request_url="https://photoslibrary.googleapis.com/v1/uploads"
 			request_type="POST"
 			headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": fileList[0].path, "X-Goog-Upload-Protocol": "raw"}
 			self.credentials.authorize(h)
-			print("Uploading file: " + filePath)
+			print("Uploading file: " + filePath.path)
 			
 			response, content = h.request(request_url, request_type, headers=headers, body=open(filePath.path, 'rb').read())
 			
@@ -163,9 +164,9 @@ class GooglePhotos():
 		printv(response)
 		printv(content)
 
-		
+
 def scan_for_changes(pickle_file="./db.pyPickle",topdir=".",subfolders = True):
-	
+
 	try:
 		l = pickle.load(open(pickle_file,mode='rb'))
 	except IOError:
@@ -176,19 +177,20 @@ def scan_for_changes(pickle_file="./db.pyPickle",topdir=".",subfolders = True):
 		for name in files:
 			if name.lower().split(".")[-1] in extensions:
 				fullpath=os.path.join(dirpath, name)
-				
+
 				if fullpath in db and db[fullpath].checkSame():
 					printv(fullpath + " check passed")
 				else:
 					printv(fullpath + " check failed, adding file")
 					db[fullpath]=MyFile(fullpath)
 					yield db[fullpath]
+
+		pickle.dump(db, open(pickle_file, mode="wb"))
+
 		if not subfolders:
 			break
 
-	pickle.dump(db, open(pickle_file, mode="wb"))
 
-	
 def loadConfig(file):
 	config = configparser.ConfigParser()
 	config.read(file)
@@ -205,13 +207,13 @@ def loadArgParser():
 	parser.add_argument('-verbose', help='Verbose mode.', default=False)
 	return parser.parse_args()
 
-def printv(x):
-	if args.verbose:
-		print (x)
+def printv(x, end=None):
+	if printVerbose:
+		print (x,end=end)
 
 if __name__ == "__main__":
 	args = loadArgParser()
-	global printVerbose = args.verbose
+	printVerbose = args.verbose
 	
 	printv("Folder location is: ", end="")
 	printv(args.Folder)
