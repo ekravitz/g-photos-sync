@@ -38,6 +38,9 @@ class MyFile():
 	def __str__(self):
 		return self.path
 
+	def addGoogleID(self,picID):
+		self.picID=picID
+
 class GooglePhotos():
 	def __init__(self, config):
 		self.credentials = self.retreive_from_storage(config)
@@ -121,10 +124,10 @@ class GooglePhotos():
 		printv(content)
 		jsonContent = json.loads(content.decode("utf-8"))
 		if "title" in jsonContent:
-			#printv("Found album with the following title: " + jsonContent["title"])
+			printv("Found album with the following title: " + jsonContent["title"])
 			return True
 		else:
-			#printv("Album in local storage but not online. Re-adding album.")
+			printv("Album in local storage but not online. Re-adding album.")
 			return False
 		
 	def uploadPhoto(self,albumID,fileList):
@@ -134,7 +137,7 @@ class GooglePhotos():
 			h=Http()
 			request_url="https://photoslibrary.googleapis.com/v1/uploads"
 			request_type="POST"
-			headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": fileList[0].path, "X-Goog-Upload-Protocol": "raw"}
+			headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": filePath.path, "X-Goog-Upload-Protocol": "raw"}
 			self.credentials.authorize(h)
 			print("Uploading file: " + filePath.path)
 			
@@ -164,31 +167,44 @@ class GooglePhotos():
 		printv(response)
 		printv(content)
 
+		jsonContent = json.loads(content.decode("utf-8"))
 
-def scan_for_changes(pickle_file="./db.pyPickle",topdir=".",subfolders = True):
+		for result in jsonContent["newMediaItemResults"]:
+			if "ok" in result["status"]["message"].lower():
+				print("Good upload for file: " + result["mediaItem"]["filename"])
+				self.db[result["mediaItem"]["filename"]].addGoogleID(result["mediaItem"]["id"])
+			else:
+				print("Upload failed")
+				raise Exception("Upload failed!")
 
-	try:
-		l = pickle.load(open(pickle_file,mode='rb'))
-	except IOError:
-		l = []
-	db = dict(l)
+		pickle.dump(self.db, open(self.pickle_file, mode="wb"))
 
-	for dirpath, dirnames, files in os.walk(topdir):
-		for name in files:
-			if name.lower().split(".")[-1] in extensions:
-				fullpath=os.path.join(dirpath, name)
 
-				if fullpath in db and db[fullpath].checkSame():
-					printv(fullpath + " check passed")
-				else:
-					printv(fullpath + " check failed, adding file")
-					db[fullpath]=MyFile(fullpath)
-					yield db[fullpath]
+	def scan_for_changes(self,pickle_file="./db.pyPickle",topdir=".",subfolders = True):
 
-		pickle.dump(db, open(pickle_file, mode="wb"))
+		self.pickle_file=pickle_file
 
-		if not subfolders:
-			break
+		try:
+			l = pickle.load(open(pickle_file,mode='rb'))
+		except IOError:
+			l = []
+		self.db = dict(l)
+
+		for dirpath, dirnames, files in os.walk(topdir):
+			for name in files:
+
+				if name.lower().split(".")[-1] in extensions:
+					fullpath=os.path.join(dirpath, name)
+
+					if fullpath in self.db and self.db[fullpath].checkSame():
+						printv(fullpath + " check passed")
+					else:
+						printv(fullpath + " check failed, adding file")
+						self.db[fullpath]=MyFile(fullpath)
+						yield self.db[fullpath]
+
+			if not subfolders:
+				break
 
 
 def loadConfig(file):
@@ -221,12 +237,13 @@ if __name__ == "__main__":
 	config = loadConfig(args.config)
 	
 	gPhoto = GooglePhotos(config["Google"])
-	
+	numList=int(config["General"]["Number_Files_to_Loop"])
+
 	if args.album:
 		albumID = gPhoto.getAlbum(args.album)
-		fileListGenerator = scan_for_changes(config["General"]["pickleFileDB"],args.Folder,args.subfolders)
+		fileListGenerator = gPhoto.scan_for_changes(config["General"]["pickleFileDB"],args.Folder,args.subfolders)
 		while True:
-			fileList = list(itertools.islice(fileListGenerator, 5))
+			fileList = list(itertools.islice(fileListGenerator, numList))
 			printv("File list is: ", end="")
 			printv(fileList)
 			if not fileList: 
@@ -240,10 +257,10 @@ if __name__ == "__main__":
 		
 		for dirname in dirnames:
 			albumID = dirname
-			fileListGenerator = scan_for_changes(config["General"]["pickleFileDB"],
+			fileListGenerator = gPhoto.scan_for_changes(config["General"]["pickleFileDB"],
 							     os.path.join(dirpath, dirname),args.subfolders)
 			while True:
-				fileList = list(itertools.islice(fileListGenerator, 5))
+				fileList = list(itertools.islice(fileListGenerator, numList))
 				printv("File list is: ", end="")
 				printv(fileList)
 				if not fileList: 
