@@ -48,7 +48,8 @@ class GooglePhotos():
 			l = pickle.load(open(pickleFileLocation,mode='rb'))
 		except IOError:
 			l = {}
-		print(l)
+		printv("Album list loaded from file: ", end="")
+		printv(l)
 		return dict(l)
 		
 	def authenticateGoogle(self, config):
@@ -57,7 +58,7 @@ class GooglePhotos():
 			redirect_uri='urn:ietf:wg:oauth:2.0:oob')
 			#redirect_uri='http://localhost')
 		auth_uri = flow.step1_get_authorize_url()
-		print("Please go to the following URL: " + auth_uri)
+		#print("Please go to the following URL: " + auth_uri)
 		gToken=input("Please enter the code from Google: ")
 		
 		credentials = flow.step2_exchange(gToken)
@@ -71,8 +72,7 @@ class GooglePhotos():
 			credentials = authenticateGoogle(config)
 			storage.put(credentials)
 		else:
-			pass
-			print("Got from storage")
+			printv("Obtained credentials from storage")
 	
 		return credentials
 	
@@ -80,6 +80,7 @@ class GooglePhotos():
 		
 		if (albumTitle.lower() not in self.albumList) or (not self.albumExistsOnline(self.albumList[albumTitle.lower()])):
 			#Add album
+			printv("Running getAlbum")
 			h=Http()
 			request_url="https://photoslibrary.googleapis.com/v1/albums"
 			request_type="POST"
@@ -89,20 +90,24 @@ class GooglePhotos():
 
 			self.credentials.authorize(h)
 			formatted_body=json.dumps(body)
-			# print(formatted_body)
+			printv("Submitting the following http body: " + formatted_body)
 			response, content = h.request(request_url, request_type, headers=headers, body=formatted_body)
-			
+			printv("______GET ALBUM RESPONSE______")
+			printv(response)
+			printv(content)			
 			#Save album title and id information
 			
 			# UTF-8 is common and is specified in header, so assume it will stay the same. Better approach would be to follow what is in the header
 			jsonContent = json.loads(content.decode("utf-8"))
-
+			
+			
 			self.albumList[jsonContent["title"].lower()] = jsonContent["id"]
 			pickle.dump(self.albumList, open(self.pickleFile, mode="wb"))
 		
 		return self.albumList[albumTitle.lower()]
 	
 	def albumExistsOnline(self, albumID):
+		printv("Checking album exists online")
 		h=Http()
 		request_url="https://photoslibrary.googleapis.com/v1/albums/" +  albumID
 		request_type="GET"
@@ -110,15 +115,19 @@ class GooglePhotos():
 		self.credentials.authorize(h)
 		response, content = h.request(request_url, request_type, headers=headers, body='')
 		# UTF-8 is common and is specified in header, so assume it will stay the same. Better approach would be to follow what is in the header
+		printv("______ALBUM EXISTS RESPONSE______")
+		printv(response)
+		printv(content)
 		jsonContent = json.loads(content.decode("utf-8"))
 		if "title" in jsonContent:
-			print("Found album with the following title: " + jsonContent["title"])
+			#printv("Found album with the following title: " + jsonContent["title"])
 			return True
 		else:
-			print("Album in local storage but not online. Re-adding album.")
+			#printv("Album in local storage but not online. Re-adding album.")
 			return False
 		
 	def uploadPhoto(self,albumID,fileList): #only first item in list for now
+		printv("Uploading list of photos")
 		newItems =[]
 		for filePath in fileList[:1]:
 			h=Http()
@@ -126,12 +135,13 @@ class GooglePhotos():
 			request_type="POST"
 			headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": fileList[0].path, "X-Goog-Upload-Protocol": "raw"}
 			self.credentials.authorize(h)
-
-			# print(formatted_body)
+			print("Uploading file: " + filePath)
+			
 			response, content = h.request(request_url, request_type, headers=headers, body=open(filePath.path, 'rb').read())
-			print(response)
-			print("______UPLOAD RESPONSE______")
-			print(content)
+			
+			printv("______UPLOAD RESPONSE______")
+			printv(response)
+			printv(content)
 			#HANDLE ERROR UPLOADING
 			newItems.append({"description":filePath.path,"simpleMediaItem":{"uploadToken":content.decode("utf-8")}})
 		
@@ -144,12 +154,14 @@ class GooglePhotos():
 		self.credentials.authorize(h)
 		body={"albumId":albumID, "newMediaItems":newItems}
 		formatted_body=json.dumps(body)
-		print("Body of media item request:")
-		print(formatted_body)
+		printv("Body of media item request:")
+		printv(formatted_body)
+		
 		response, content = h.request(request_url, request_type, headers=headers, body=formatted_body)
-		print("Response to media item request:")
-		print(response)
-		print(content)
+		
+		printv("Response to media item request:")
+		printv(response)
+		printv(content)
 
 		
 def scan_for_changes(pickle_file="./db.pyPickle",topdir=".",subfolders = True):
@@ -166,9 +178,9 @@ def scan_for_changes(pickle_file="./db.pyPickle",topdir=".",subfolders = True):
 				fullpath=os.path.join(dirpath, name)
 				
 				if fullpath in db and db[fullpath].checkSame():
-					print(fullpath + " check passed")
+					printv(fullpath + " check passed")
 				else:
-					print (fullpath + " check failed, adding file")
+					printv(fullpath + " check failed, adding file")
 					db[fullpath]=MyFile(fullpath)
 					yield db[fullpath]
 		if not subfolders:
@@ -190,13 +202,19 @@ def loadArgParser():
 	parser.add_argument('-album', help='Specify name of album to save; defaults to albums in FIRST LEVEL SUBFOLDER (pics in top folder ignored)')
 	parser.add_argument('-config', help='Location of config file; defaults to current directory', default="./config.ini")
 	parser.add_argument('-subfolders', help='Include subfolders beneath album level?', default=True)
+	parser.add_argument('-verbose', help='Verbose mode.', default=False)
 	return parser.parse_args()
+
+def printv(x):
+	if args.verbose:
+		print (x)
 
 if __name__ == "__main__":
 	args = loadArgParser()
+	global printVerbose = args.verbose
 	
-	print(args.Folder)
-	print(args.album)
+	printv("Folder location is: ", end="")
+	printv(args.Folder)
 
 	config = loadConfig(args.config)
 	
@@ -206,9 +224,27 @@ if __name__ == "__main__":
 		albumID = gPhoto.getAlbum(args.album)
 		fileListGenerator = scan_for_changes(config["General"]["pickleFileDB"],args.Folder,args.subfolders)
 		while True:
-			fileList = list(itertools.islice(fileListGenerator, 3))
-			print(fileList)
+			fileList = list(itertools.islice(fileListGenerator, 5))
+			printv("File list is: ", end="")
+			printv(fileList)
 			if not fileList: 
 				break
 			gPhoto.uploadPhoto(albumID, fileList)
-			print("loop")
+			printv("loop")
+	else:
+		dirpath, dirnames, files = next(os.walk(args.Folder))
+		printv("Looping through dirnames: ", end='')
+		printv(dirnames)
+		
+		for dirname in dirnames:
+			albumID = dirname
+			fileListGenerator = scan_for_changes(config["General"]["pickleFileDB"],
+							     os.path.join(dirpath, dirname),args.subfolders)
+			while True:
+				fileList = list(itertools.islice(fileListGenerator, 5))
+				printv("File list is: ", end="")
+				printv(fileList)
+				if not fileList: 
+					break
+				gPhoto.uploadPhoto(albumID, fileList)
+				printv("loop")
