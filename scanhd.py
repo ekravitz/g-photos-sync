@@ -139,8 +139,10 @@ class GooglePhotos():
 			request_type="POST"
 			headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": filePath.path, "X-Goog-Upload-Protocol": "raw"}
 			self.credentials.authorize(h)
+			printv("_____UPLOAD FILE______")
 			print("Uploading file: " + filePath.path)
-			
+			printv(headers)
+
 			response, content = h.request(request_url, request_type, headers=headers, body=open(filePath.path, 'rb').read())
 			
 			printv("______UPLOAD RESPONSE______")
@@ -164,10 +166,11 @@ class GooglePhotos():
 		response, content = h.request(request_url, request_type, headers=headers, body=formatted_body)
 		
 		printv("Response to media item request:")
-		printv(response)
-		printv(content)
 
 		jsonContent = json.loads(content.decode("utf-8"))
+		printv(response)
+		printv(jsonContent)
+
 
 		for result in jsonContent["newMediaItemResults"]:
 			if "ok" in result["status"]["message"].lower():
@@ -220,7 +223,7 @@ def loadArgParser():
 	parser.add_argument('-album', help='Specify name of album to save; defaults to albums in FIRST LEVEL SUBFOLDER (pics in top folder ignored)')
 	parser.add_argument('-config', help='Location of config file; defaults to current directory', default="./config.ini")
 	parser.add_argument('-subfolders', help='Include subfolders beneath album level?', default=True)
-	parser.add_argument('-verbose', help='Verbose mode.', default=False)
+	parser.add_argument('-verbose', help='Verbose mode.', action='store_true')
 	return parser.parse_args()
 
 def printv(x, end=None):
