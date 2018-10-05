@@ -72,11 +72,11 @@ class GooglePhotos():
 	
 		storage = Storage(config['credentialsFile'])
 		credentials = storage.get()
-		if credentials is None:
+		if credentials:
+			printv("Obtained credentials from storage")
+		else:
 			credentials = self.authenticateGoogle(config)
 			storage.put(credentials)
-		else:
-			printv("Obtained credentials from storage")
 	
 		return credentials
 	
@@ -221,9 +221,11 @@ def loadArgParser():
 	parser = argparse.ArgumentParser(description='Scan HD for changes and upload to GPhotos.')
 	parser.add_argument('Folder', help='Folder location to scan and upload')
 	parser.add_argument('-album', help='Specify name of album to save; defaults to albums in FIRST LEVEL SUBFOLDER (pics in top folder ignored)')
-	parser.add_argument('-config', help='Location of config file; defaults to current directory', default="./config.ini")
+	parser.add_argument('-config', help='Location of config file.', default='./config.ini')
 	parser.add_argument('-subfolders', help='Include subfolders beneath album level?', default=True)
 	parser.add_argument('-verbose', help='Verbose mode.', action='store_true')
+	parser.add_argument('-email', help='Send email summary.', action='store_true')
+	
 	return parser.parse_args()
 
 def printv(x, end=None):
@@ -236,37 +238,73 @@ if __name__ == "__main__":
 	
 	printv("Folder location is: ", end="")
 	printv(args.Folder)
+	
+	printv("Using config file at: ", end="")
+	printv(args.config)
 
 	config = loadConfig(args.config)
 	
 	gPhoto = GooglePhotos(config["Google"])
 	numList=int(config["General"]["Number_Files_to_Loop"])
 
-	if args.album:
-		albumID = gPhoto.getAlbum(args.album)
-		fileListGenerator = gPhoto.scan_for_changes(config["General"]["pickleFileDB"],args.Folder,args.subfolders)
-		while True:
-			fileList = list(itertools.islice(fileListGenerator, numList))
-			printv("File list is: ", end="")
-			printv(fileList)
-			if not fileList: 
-				break
-			gPhoto.uploadPhoto(albumID, fileList)
-			printv("loop")
-	else:
-		dirpath, dirnames, files = next(os.walk(args.Folder))
-		printv("Looping through dirnames: ", end='')
-		printv(dirnames)
-		
-		for dirname in dirnames:
-			albumID = dirname
-			fileListGenerator = gPhoto.scan_for_changes(config["General"]["pickleFileDB"],
-							     os.path.join(dirpath, dirname),args.subfolders)
+	fileCount=0
+	fancyBody="<html><head></head>\n"
+	
+	try:
+		if args.album:
+			albumID = gPhoto.getAlbum(args.album)
+			fileListGenerator = gPhoto.scan_for_changes(config["General"]["pickleFileDB"],args.Folder,args.subfolders)
 			while True:
 				fileList = list(itertools.islice(fileListGenerator, numList))
 				printv("File list is: ", end="")
-				printv(fileList)
 				if not fileList: 
 					break
+				printv(fileList)
+				fileCount += len(fileList)
 				gPhoto.uploadPhoto(albumID, fileList)
 				printv("loop")
+		else:
+			dirpath, dirnames, files = next(os.walk(args.Folder))
+			printv("Looping through dirnames: ", end='')
+			printv(dirnames)
+			
+			for dirname in dirnames:
+				albumID = dirname
+				fileListGenerator = gPhoto.scan_for_changes(config["General"]["pickleFileDB"],
+								     os.path.join(dirpath, dirname),args.subfolders)
+				while True:
+					fileList = list(itertools.islice(fileListGenerator, numList))
+					printv("File list is: ", end="")
+					printv(fileList)
+					if not fileList: 
+						printv("============BREAK=============")
+						break
+					printv(fileList)
+					fileCount += len(fileList)
+					gPhoto.uploadPhoto(albumID, fileList)
+					printv("loop")
+
+		fancyBody+="<b>Summary of GPhotos upload activity.</b>\n"
+
+		if args.album:
+			fancyBody+="<br>Uploaded to album: " + args.album
+		else:
+			fancyBody += "<br>Uploaded to albums based on directory names."
+
+		fancyBody += "<br>Uploaded " + str(fileCount) + " pictures."
+		fancyBody += "<br>From directory: " + args.Folder
+
+	except Exception as e:
+		fancyBody += "Tried to run gPhotos, but an error occurred.<br><br>\n"
+		fancyBody += "Error message is: <br>/n"
+		fancyBody += str(e)
+
+	finally:
+		fancyBody += "</html>"
+		printv(fancyBody)
+		if args.email and fileCount>0:
+			#Send email summary of upload
+			from emailSend import sendMail
+			emailAddr = config["General"]["Email_Summary"]
+			printv("Sending email to: " + emailAddr)
+			sendMail(emailAddr,"GPhotos upload summary",fancyBody,"html")
