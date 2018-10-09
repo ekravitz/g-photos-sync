@@ -21,7 +21,8 @@ class MyFile():
 #Auto-init and save file attributes that are relevant
 	def __init__(self, path):
 		self.path = path
-		
+		self.filename = os.path.basename(path)
+
 		self.st_size = os.stat(path).st_size
 		self.st_mtime= os.stat(path).st_mtime
 		self.checksum = hashlib.md5(open(path,mode='rb').read()).hexdigest()
@@ -133,11 +134,12 @@ class GooglePhotos():
 	def uploadPhoto(self,albumID,fileList):
 		printv("Uploading list of photos")
 		newItems =[]
+		filepathlookup={}
 		for filePath in fileList:
 			h=Http()
 			request_url="https://photoslibrary.googleapis.com/v1/uploads"
 			request_type="POST"
-			headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": filePath.path, "X-Goog-Upload-Protocol": "raw"}
+			headers={"Content-type": "octet-stream", "X-Goog-Upload-File-Name": filePath.filename, "X-Goog-Upload-Protocol": "raw"}
 			self.credentials.authorize(h)
 			printv("_____UPLOAD FILE______")
 			print("Uploading file: " + filePath.path)
@@ -149,9 +151,11 @@ class GooglePhotos():
 			printv(response)
 			printv(content)
 			#HANDLE ERROR UPLOADING
-			newItems.append({"description":filePath.path,"simpleMediaItem":{"uploadToken":content.decode("utf-8")}})
-		
-		
+			newItems.append({"description":filePath.filename,"simpleMediaItem":{"uploadToken":content.decode("utf-8")}})
+			#Description used to be the path; changed to filename to test whether fixed problem with iPhone.
+			
+			filepathlookup[filePath.filename]=filePath.path
+
 		#Need to create media item if this works until here.
 		h=Http()
 		request_url="https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate"
@@ -171,11 +175,14 @@ class GooglePhotos():
 		printv(response)
 		printv(jsonContent)
 
+		count=0
 
 		for result in jsonContent["newMediaItemResults"]:
 			if "ok" in result["status"]["message"].lower():
 				print("Good upload for file: " + result["mediaItem"]["filename"])
-				self.db[result["mediaItem"]["filename"]].addGoogleID(result["mediaItem"]["id"])
+
+				self.db[filepathlookup[result["mediaItem"]["filename"]]].addGoogleID(result["mediaItem"]["id"])
+				count += 1
 			else:
 				print("Upload failed")
 				raise Exception("Upload failed!")
@@ -260,8 +267,8 @@ if __name__ == "__main__":
 				if not fileList: 
 					break
 				printv(fileList)
-				fileCount += len(fileList)
 				gPhoto.uploadPhoto(albumID, fileList)
+				fileCount += len(fileList)
 				printv("loop")
 		else:
 			dirpath, dirnames, files = next(os.walk(args.Folder))
@@ -280,10 +287,21 @@ if __name__ == "__main__":
 						printv("============BREAK=============")
 						break
 					printv(fileList)
-					fileCount += len(fileList)
 					gPhoto.uploadPhoto(albumID, fileList)
+					fileCount += len(fileList)
 					printv("loop")
 
+	except Exception as e:
+		fancyBody += "Tried to run gPhotos, but an error occurred.<br><br>\n"
+		fancyBody += "Error message is: <br>/n"
+		fancyBody += str(e)
+		fancyBody += "<br>/n"
+
+		print("Error!")
+		print(e)
+		raise
+
+	finally:
 		fancyBody+="<b>Summary of GPhotos upload activity.</b>\n"
 
 		if args.album:
@@ -294,12 +312,7 @@ if __name__ == "__main__":
 		fancyBody += "<br>Uploaded " + str(fileCount) + " pictures."
 		fancyBody += "<br>From directory: " + args.Folder
 
-	except Exception as e:
-		fancyBody += "Tried to run gPhotos, but an error occurred.<br><br>\n"
-		fancyBody += "Error message is: <br>/n"
-		fancyBody += str(e)
 
-	finally:
 		fancyBody += "</html>"
 		printv(fancyBody)
 		if args.email and fileCount>0:
